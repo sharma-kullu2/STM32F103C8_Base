@@ -4,6 +4,10 @@ The "STM32F103C8T6 PlatformIO Blinky Template" is a simple and straightforward p
 
 UART communication is enabled, allowing you to easily send and receive data over the serial port. The printf statements in the code will be directed to the serial port. This template serves as an ideal foundation for STM32 development, enabling you to kickstart your projects efficiently.
 
+On Branch DEV, enabled SD card related operations.
+
+In progress
+
 ## Installation
 To get started with this template and program your STM32F103C8T6 microcontroller, follow these steps:
 
