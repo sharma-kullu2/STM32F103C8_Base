@@ -249,6 +249,17 @@ static uint32_t SpixTimeout = BOARD_SPIx_TIMEOUT_MAX;        /*<! Value of Timeo
 
 static SPI_HandleTypeDef hf103_Spi;
 static void SPIx_Error (void);
+static const uint16_t speeds[] = {
+                                  [SPI_SPEED_32M] = SPI_BAUDRATEPRESCALER_2,
+                                  [SPI_SPEED_16M] = SPI_BAUDRATEPRESCALER_4,
+                                  [SPI_SPEED_8M] = SPI_BAUDRATEPRESCALER_8,
+                                  [SPI_SPEED_4M]= SPI_BAUDRATEPRESCALER_16,
+                                  [SPI_SPEED_2M] = SPI_BAUDRATEPRESCALER_32,
+                                  [SPI_SPEED_1M] = SPI_BAUDRATEPRESCALER_64,
+                                  [SPI_SPEED_500] = SPI_BAUDRATEPRESCALER_128,
+                                  [SPI_SPEED_250]= SPI_BAUDRATEPRESCALER_256
+                                };
+
 /**
   * @brief  Initialize SPI MSP.
   */
@@ -297,7 +308,7 @@ void BSP_SPI_Init(void)
           - SD card SPI interface max baudrate is 25MHz for write/read
           - PCLK2 max frequency is 32 MHz 
        */
-    hf103_Spi.Init.BaudRatePrescaler  = SPI_BAUDRATEPRESCALER_8;
+    hf103_Spi.Init.BaudRatePrescaler  = speeds[SPI_SPEED_8M]; 
     hf103_Spi.Init.Direction          = SPI_DIRECTION_2LINES;
     hf103_Spi.Init.CLKPhase           = SPI_PHASE_1EDGE;
     hf103_Spi.Init.CLKPolarity        = SPI_POLARITY_LOW;
@@ -311,6 +322,14 @@ void BSP_SPI_Init(void)
     SPIx_MspInit();
     HAL_SPI_Init(&hf103_Spi);
   }
+}
+
+/**
+  * @brief  Update SPI Speed
+  * @param  speed: Speed as per enum
+*/
+void BSP_SPI_Speed(spiSpeed speed){
+  hf103_Spi.Instance->CR1= (hf103_Spi.Instance->CR1 & ~SPI_BAUDRATEPRESCALER_256) | speeds[speed];
 }
 
 /**
@@ -384,11 +403,7 @@ static void SPIx_Error (void)
 /******************************************************************************
                             LINK OPERATIONS
 *******************************************************************************/
-/**
-  * @brief LINK SD Card
-  */
-#define SD_DUMMY_BYTE            0xFF    
-#define SD_NO_RESPONSE_EXPECTED  0x80
+
 
 /********************************* LINK SD ************************************/
 /**
@@ -414,6 +429,9 @@ void SD_IO_Init(void)
   /* SD SPI Config */
   BSP_SPI_Init();
 
+  /*Set SPI Clock speed Max 100-400KHz*/
+  BSP_SPI_Speed(SPI_SPEED_250);
+  
   /* SD chip select high */
   SD_CS_HIGH();
   
@@ -462,7 +480,6 @@ void SD_IO_WriteReadData(const uint8_t *DataIn, uint8_t *DataOut, uint16_t DataL
 uint8_t SD_IO_WriteByte(uint8_t Data)
 {
   uint8_t tmp;
-
   /* Send the byte */
   BSP_SPI_WriteReadData(&Data,&tmp,1);
   return tmp;

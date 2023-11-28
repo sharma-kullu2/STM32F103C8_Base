@@ -95,11 +95,39 @@ void            BSP_LED_Toggle(Led_TypeDef Led);
    conditions (interrupts routines ...). */   
 #define BOARD_SPIx_TIMEOUT_MAX                   1000
 
+/**
+ * SPI Speeds 
+ * 64MHz/2=32MHz        
+ * 64MHz/4=16MHz        
+ * 64MHz/8=8MHz 
+ * 64MHz/16=4MHz        
+ * 64MHz/32=2MHz        
+ * 64MHz/64=1MHz     
+ * 64MHz/128=500KHz        
+ * 64MHz/256=250KHz
+*/
+typedef enum _spiSpeed{
+  SPI_SPEED_32M , 
+  SPI_SPEED_16M , 
+  SPI_SPEED_8M ,
+  SPI_SPEED_4M ,
+  SPI_SPEED_2M ,
+  SPI_SPEED_1M ,
+  SPI_SPEED_500 ,
+  SPI_SPEED_250
+}spiSpeed;
 
 void               BSP_SPI_Init(void);
+void               BSP_SPI_Speed(spiSpeed);
 void               BSP_SPI_Write(uint8_t Value);
 void               BSP_SPI_WriteData(uint8_t *DataIn, uint16_t DataLength);
 void               BSP_SPI_WriteReadData(const uint8_t *DataIn, uint8_t *DataOut, uint16_t DataLength);
+
+/**
+  * @brief LINK SD Card
+  */
+#define SD_DUMMY_BYTE            0xFF    
+#define SD_NO_RESPONSE_EXPECTED  0x80
 
 /**
   * @brief  SD Control Interface pins (shield D4)
@@ -123,6 +151,7 @@ void                      SD_IO_ReadData(uint8_t *DataOut, uint16_t DataLength);
 void                      SD_IO_WriteData(const uint8_t *Data, uint16_t DataLength);
 uint8_t                   SD_IO_WriteByte(uint8_t Data);
 uint8_t                   SD_IO_ReadByte(void);
+
 
 #endif
 
