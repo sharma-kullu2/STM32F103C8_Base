@@ -119,7 +119,7 @@ void BSP_LED_DeInit(Led_TypeDef Led)
 void BSP_LED_On(Led_TypeDef Led)
 {
   //@Todo assert if led is valid before proceeding
-  HAL_GPIO_WritePin(LED_PORT[Led], LED_PIN[Led], GPIO_PIN_SET); 
+  GPIO_On(LED_PORT[Led],LED_PIN[Led]);
 }
 
 /**
@@ -130,8 +130,8 @@ void BSP_LED_On(Led_TypeDef Led)
   */
 void BSP_LED_Off(Led_TypeDef Led)
 {
-  //@Todo assert if led is valid before proceeding
-  HAL_GPIO_WritePin(LED_PORT[Led], LED_PIN[Led], GPIO_PIN_RESET); 
+  //@Todo assert if led is valid before proceeding 
+  GPIO_Off(LED_PORT[Led],LED_PIN[Led]);
 }
 
 /**
@@ -271,6 +271,7 @@ static void SPIx_MspInit(void)
   /* Enable GPIO clock */
   BOARD_SPIx_SCK_GPIO_CLK_ENABLE();
   BOARD_SPIx_MISO_MOSI_GPIO_CLK_ENABLE();
+  __HAL_RCC_AFIO_CLK_ENABLE();
 
   /* Configure SPI SCK */
   gpioinitstruct.Pin        = BOARD_SPIx_SCK_PIN;
@@ -278,14 +279,12 @@ static void SPIx_MspInit(void)
   gpioinitstruct.Speed      = GPIO_SPEED_FREQ_HIGH;
   HAL_GPIO_Init(BOARD_SPIx_SCK_GPIO_PORT, &gpioinitstruct);
 
-  /* Configure SPI MISO and MOSI */ 
-  gpioinitstruct.Pin        = BOARD_SPIx_MOSI_PIN;
+  /* configure SPI MISO and MOSI */
+  gpioinitstruct.Pin        = (BOARD_SPIx_MISO_PIN | BOARD_SPIx_MOSI_PIN);
+  gpioinitstruct.Mode       = GPIO_MODE_AF_PP;
+  gpioinitstruct.Pull       = GPIO_NOPULL;
+  gpioinitstruct.Speed      = GPIO_SPEED_FREQ_HIGH;
   HAL_GPIO_Init(BOARD_SPIx_MISO_MOSI_GPIO_PORT, &gpioinitstruct);
-  
-  gpioinitstruct.Pin        = BOARD_SPIx_MISO_PIN;
-  gpioinitstruct.Mode       = GPIO_MODE_INPUT;
-  HAL_GPIO_Init(BOARD_SPIx_MISO_MOSI_GPIO_PORT, &gpioinitstruct);
-
   /*** Configure the SPI peripheral ***/ 
   /* Enable SPI clock */
   BOARD_SPIx_CLK_ENABLE();
@@ -296,31 +295,32 @@ static void SPIx_MspInit(void)
   */
 void BSP_SPI_Init(void)
 {
-  if(HAL_SPI_GetState(&hf103_Spi) == HAL_SPI_STATE_RESET)
-  {
-    /* SPI Config */
-    hf103_Spi.Instance = BOARD_SPIx;
-      /* SPI baudrate is set to 8 MHz maximum (PCLK2/SPI_BaudRatePrescaler = 64/8 = 8 MHz) 
+  /* SPI Config */
+  hf103_Spi.Instance = BOARD_SPIx;
+  HAL_SPI_DeInit(&hf103_Spi);
+  /* SPI baudrate is set to 8 MHz maximum (PCLK2/SPI_BaudRatePrescaler = 64/8 = 8 MHz) 
        to verify these constraints:
           - ST7735 LCD SPI interface max baudrate is 15MHz for write and 6.66MHz for read
             Since the provided driver doesn't use read capability from LCD, only constraint 
             on write baudrate is considered.
           - SD card SPI interface max baudrate is 25MHz for write/read
           - PCLK2 max frequency is 32 MHz 
-       */
-    hf103_Spi.Init.BaudRatePrescaler  = speeds[SPI_SPEED_8M]; 
-    hf103_Spi.Init.Direction          = SPI_DIRECTION_2LINES;
-    hf103_Spi.Init.CLKPhase           = SPI_PHASE_1EDGE;
-    hf103_Spi.Init.CLKPolarity        = SPI_POLARITY_LOW;
-    hf103_Spi.Init.CRCCalculation     = SPI_CRCCALCULATION_DISABLE;
-    hf103_Spi.Init.CRCPolynomial      = 7;
-    hf103_Spi.Init.DataSize           = SPI_DATASIZE_8BIT;
-    hf103_Spi.Init.FirstBit           = SPI_FIRSTBIT_MSB;
-    hf103_Spi.Init.NSS                = SPI_NSS_SOFT;
-    hf103_Spi.Init.TIMode             = SPI_TIMODE_DISABLE;
-    hf103_Spi.Init.Mode               = SPI_MODE_MASTER;
-    SPIx_MspInit();
-    HAL_SPI_Init(&hf103_Spi);
+  */
+  hf103_Spi.Init.BaudRatePrescaler  = speeds[SPI_SPEED_8M]; 
+  hf103_Spi.Init.Direction          = SPI_DIRECTION_2LINES;
+  hf103_Spi.Init.CLKPhase           = SPI_PHASE_2EDGE;
+  hf103_Spi.Init.CLKPolarity        = SPI_POLARITY_HIGH;
+  hf103_Spi.Init.CRCCalculation     = SPI_CRCCALCULATION_DISABLE;
+  hf103_Spi.Init.CRCPolynomial      = 7;
+  hf103_Spi.Init.DataSize           = SPI_DATASIZE_8BIT;
+  hf103_Spi.Init.FirstBit           = SPI_FIRSTBIT_MSB;
+  hf103_Spi.Init.NSS                = SPI_NSS_SOFT;
+  hf103_Spi.Init.TIMode             = SPI_TIMODE_DISABLE;
+  hf103_Spi.Init.Mode               = SPI_MODE_MASTER;
+  SPIx_MspInit();
+  if (HAL_SPI_Init(&hf103_Spi) != HAL_OK){
+    /* Should not occur */
+    while(1) {};
   }
 }
 
@@ -330,6 +330,28 @@ void BSP_SPI_Init(void)
 */
 void BSP_SPI_Speed(spiSpeed speed){
   hf103_Spi.Instance->CR1= (hf103_Spi.Instance->CR1 & ~SPI_BAUDRATEPRESCALER_256) | speeds[speed];
+}
+
+/**
+  * @brief SPI Read 4 bytes from device
+  * @retval Read data
+*/
+uint32_t BSP_SPI_Read(void)
+{
+  HAL_StatusTypeDef status = HAL_OK;
+  uint32_t          readvalue = 0;
+  uint32_t          writevalue = 0xFFFFFFFF;
+  
+  status = HAL_SPI_TransmitReceive(&hf103_Spi, (uint8_t*) &writevalue, (uint8_t*) &readvalue, 1, SpixTimeout);
+  
+  /* Check the communication status */
+  if(status != HAL_OK)
+  {
+    /* Execute user timeout callback */
+    SPIx_Error();
+  }
+
+  return readvalue;
 }
 
 /**
@@ -355,12 +377,31 @@ void BSP_SPI_WriteReadData(const uint8_t *DataIn, uint8_t *DataOut, uint16_t Dat
   * @param  Value: value to be written
   * @param  DataLength: number of bytes to write
   */
-void BSP_SPI_WriteData(uint8_t *DataIn, uint16_t DataLength)
+void BSP_SPI_WriteData(const uint8_t *DataIn, uint16_t DataLength)
 {
   HAL_StatusTypeDef status = HAL_OK;
 
   status = HAL_SPI_Transmit(&hf103_Spi, DataIn, DataLength, SpixTimeout);
   
+  /* Check the communication status */
+  if(status != HAL_OK)
+  {
+    /* Execute user timeout callback */
+    SPIx_Error();
+  }
+}
+
+/**
+  * @brief  SPI Read Data from device
+  * @param  Data: value to be read
+  * @param  DataLength: length of data
+  */
+void BSP_SPI_ReadData(const uint8_t *Data, uint16_t DataLength)
+{
+  HAL_StatusTypeDef status = HAL_OK;
+
+  status = HAL_SPI_Receive(&hf103_Spi, (uint8_t*) Data, DataLength, SpixTimeout);
+
   /* Check the communication status */
   if(status != HAL_OK)
   {
@@ -430,7 +471,7 @@ void SD_IO_Init(void)
   BSP_SPI_Init();
 
   /*Set SPI Clock speed Max 100-400KHz*/
-  BSP_SPI_Speed(SPI_SPEED_250);
+  //BSP_SPI_Speed(SPI_SPEED_250);
   
   /* SD chip select high */
   SD_CS_HIGH();
@@ -467,9 +508,31 @@ void SD_IO_CSState(uint8_t val)
   * @param  DataLength: number of bytes to write
   */
 void SD_IO_WriteReadData(const uint8_t *DataIn, uint8_t *DataOut, uint16_t DataLength)
-  {
+{
   /* Send the byte */
   BSP_SPI_WriteReadData(DataIn, DataOut, DataLength);
+}
+
+/**
+  * @brief  Write a byte on the SD.
+  * @param  Data: value to be written
+  * @param  DataLength: length of data
+  */
+void SD_IO_WriteData(const uint8_t *Data, uint16_t DataLength)
+{
+  /* Send the byte */
+  BSP_SPI_WriteData(Data, DataLength);
+}
+
+/**
+  * @brief  Read a byte from the SD.
+  * @param  Data: value to be read
+  * @param  DataLength: length of data
+  */
+void SD_IO_ReadData(const uint8_t *Data, uint16_t DataLength)
+{
+  /* Send the byte */
+  BSP_SPI_ReadData(Data, DataLength);
 }
 
 /**
@@ -481,30 +544,9 @@ uint8_t SD_IO_WriteByte(uint8_t Data)
 {
   uint8_t tmp;
   /* Send the byte */
+  printf("SPI_WRITE_BYTE: 0x%x\n",Data);
   BSP_SPI_WriteReadData(&Data,&tmp,1);
   return tmp;
-}
-
-/**
-  * @brief  Write an amount of data on the SD.
-  * @param  Data: byte to send.
-  * @param  DataLength: number of bytes to write
-  */
-void SD_IO_ReadData(uint8_t *DataOut, uint16_t DataLength)
-{
-  /* Send the byte */
-  SD_IO_WriteReadData(DataOut, DataOut, DataLength);
-  }   
- 
-/**
-  * @brief  Write an amount of data on the SD.
-  * @param  Data: byte to send.
-  * @param  DataLength: number of bytes to write
-  */
-void SD_IO_WriteData(const uint8_t *Data, uint16_t DataLength)
-{
-  /* Send the byte */
-  BSP_SPI_WriteData((uint8_t *)Data, DataLength);
 }
 
 #endif /* HAL_SPI_MODULE_ENABLED */

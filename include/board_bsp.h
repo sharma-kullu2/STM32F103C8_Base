@@ -119,8 +119,10 @@ typedef enum _spiSpeed{
 
 void               BSP_SPI_Init(void);
 void               BSP_SPI_Speed(spiSpeed);
+uint32_t           BSP_SPI_Read(void);
 void               BSP_SPI_Write(uint8_t Value);
-void               BSP_SPI_WriteData(uint8_t *DataIn, uint16_t DataLength);
+void               BSP_SPI_ReadData(const uint8_t *Data, uint16_t DataLength);
+void               BSP_SPI_WriteData(const uint8_t *DataIn, uint16_t DataLength);
 void               BSP_SPI_WriteReadData(const uint8_t *DataIn, uint8_t *DataOut, uint16_t DataLength);
 
 /**
@@ -132,25 +134,25 @@ void               BSP_SPI_WriteReadData(const uint8_t *DataIn, uint8_t *DataOut
 /**
   * @brief  SD Control Interface pins (shield D4)
   */
-#define SD_CS_PIN                                 GPIO_PIN_5
-#define SD_CS_GPIO_PORT                           GPIOB
-#define SD_CS_GPIO_CLK_ENABLE()                   __HAL_RCC_GPIOB_CLK_ENABLE()
-#define SD_CS_GPIO_CLK_DISABLE()                  __HAL_RCC_GPIOB_CLK_DISABLE()
+#define SD_CS_PIN                                 GPIO_PIN_4
+#define SD_CS_GPIO_PORT                           GPIOA
+#define SD_CS_GPIO_CLK_ENABLE()                   __HAL_RCC_GPIOA_CLK_ENABLE()
+#define SD_CS_GPIO_CLK_DISABLE()                  __HAL_RCC_GPIOA_CLK_DISABLE()
 
 /**
   * @brief  SD Control Lines management
   */  
-#define SD_CS_LOW()       GPIO_Off(SD_CS_GPIO_PORT, SD_CS_PIN)
-#define SD_CS_HIGH()      GPIO_On(SD_CS_GPIO_PORT, SD_CS_PIN)
+#define SD_CS_LOW()       HAL_GPIO_WritePin(SD_CS_GPIO_PORT, SD_CS_PIN, GPIO_PIN_RESET);//GPIO_Off(SD_CS_GPIO_PORT, SD_CS_PIN)
+#define SD_CS_HIGH()      HAL_GPIO_WritePin(SD_CS_GPIO_PORT, SD_CS_PIN, GPIO_PIN_SET);//GPIO_On(SD_CS_GPIO_PORT, SD_CS_PIN)
 
 /* SD IO functions */
 void                      SD_IO_Init(void);
 void                      SD_IO_CSState(uint8_t state);
 void                      SD_IO_WriteReadData(const uint8_t *DataIn, uint8_t *DataOut, uint16_t DataLength);
-void                      SD_IO_ReadData(uint8_t *DataOut, uint16_t DataLength);
+void                      SD_IO_ReadData(const uint8_t *DataOut, uint16_t DataLength);
 void                      SD_IO_WriteData(const uint8_t *Data, uint16_t DataLength);
 uint8_t                   SD_IO_WriteByte(uint8_t Data);
-uint8_t                   SD_IO_ReadByte(void);
+
 
 
 #endif
